@@ -1,17 +1,20 @@
-package eui
+package graphicsengine
 
 import (
 	"errors"
-	//	"fmt"
-	. "github.com/trygo/winapi"
 	"image"
 	"image/color"
 	"image/draw"
 )
 
+import (
+	. "github.com/tryor/eui"
+	. "github.com/tryor/winapi"
+)
+
 /*
-  IGraphicsEngine的默认实现
-*/
+ * IGraphicsEngine的默认实现, 并不是完整实现
+ */
 
 //标记是否绘制区域边线，调试用
 var drawRegionStrokeLine bool
@@ -174,9 +177,6 @@ type DefaultGraphicsEngine struct {
 }
 
 //canvas页输出设备
-//layerCanvasCreater函数中创建层输出设备
-//func NewDefaultGraphicsEngine(page IDrawPage, canvas draw.Image, layerCanvasCreater func(l ILayer) draw.Image) *DefaultGraphicsEngine {
-//canvas页输出设备
 //layerGraphicsEngineCreater函数用于创建层IGraphicsEngine
 //func NewDefaultGraphicsEngine(page IDrawPage, icanvas draw.Image, layerGraphicsEngineCreater GraphicsEngineCreaterType) *DefaultGraphicsEngine {
 func NewDefaultGraphicsEngine(icanvas draw.Image, layerGraphicsEngineCreater GraphicsEngineCreaterType) *DefaultGraphicsEngine {
@@ -265,7 +265,8 @@ func (this *DefaultGraphicsEngine) SwapThreeBuffers() {
 }
 
 func (this *DefaultGraphicsEngine) GetBuffer() IImage {
-	panic(errors.New("Not implemented"))
+	//panic(errors.New("Not implemented"))
+	return this.Canvas
 }
 
 func (this *DefaultGraphicsEngine) CopyBuffer(x, y INT, srcx, srcy, srcw, srch INT, clear ...bool) {

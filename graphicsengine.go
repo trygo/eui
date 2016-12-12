@@ -1,10 +1,11 @@
 package eui
 
 import (
-	. "github.com/trygo/winapi"
 	"image"
 	"image/color"
 	"image/draw"
+
+	. "github.com/tryor/winapi"
 )
 
 type RenderMode byte //FillStroke
@@ -77,7 +78,6 @@ type IGraphicsEngine interface {
 	SetFillColor(c color.Color)
 	SetLineWidth(lineWidth float32)
 
-	//	DrawImage(p image.Point, src IImage, sp image.Point, ops ...draw.Op)
 	//x, y, srcx, srcy, srcwidth, srcheight INT
 	DrawImage(src IImage, x, y, srcx, srcy, srcwidth, srcheight int, ops ...draw.Op) //将src(srcx, srcy, srcwidth, srcheight)绘制到(x, y)坐标位置
 

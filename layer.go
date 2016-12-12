@@ -3,12 +3,14 @@ package eui
 import (
 	"errors"
 	"fmt"
-	"github.com/trygo/util/event"
 	"image"
 	"image/color"
+
+	"github.com/tryor/util/event"
 	//	"log"
-	. "github.com/trygo/winapi"
 	"sort"
+
+	. "github.com/tryor/winapi"
 	//	"sync/atomic"
 )
 

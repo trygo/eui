@@ -2,11 +2,12 @@ package eui
 
 import (
 	"fmt"
-	"github.com/trygo/util/event"
 	"image"
 	"log"
 	"reflect"
 	"sort"
+
+	"github.com/tryor/util/event"
 )
 
 type IElement interface {

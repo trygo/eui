@@ -2,16 +2,12 @@ package eui
 
 import (
 	"errors"
-	"github.com/trygo/util/event"
 	"image"
-	//	"image"
+
 	"log"
-	//	"log"
-	//	"log"
-	//	"reflect"
-	//	"sort"
 	"sync"
-	//	"unsafe"
+
+	"github.com/tryor/util/event"
 )
 
 var emptyElements = make([]IElement, 0)
@@ -67,8 +63,6 @@ type Elements struct {
 	focusElement         IElement //当前焦点元素
 
 	sortor *ElementSortor
-
-	//	pendingCall chan func()
 }
 
 func NewElements(els ...IElement) *Elements {
@@ -817,7 +811,7 @@ func (this *Elements) SetMoving(b bool) {
 	for _, e := range this.elements { //this.CloneElements() {
 		e.SetMoving(b)
 	}
-	//this.MoveSupport.SetMoving(b)
+	//	this.MoveSupport.SetMoving(b)
 }
 
 func (this *Elements) PrepareTransform(x, y int) {
@@ -827,7 +821,7 @@ func (this *Elements) PrepareTransform(x, y int) {
 	for _, e := range this.elements { //this.CloneElements() {
 		e.PrepareTransform(x, y)
 	}
-	//this.MoveSupport.PrepareTransform(x, y)
+	//	this.MoveSupport.PrepareTransform(x, y)
 }
 
 /**

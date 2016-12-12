@@ -3,17 +3,15 @@ package eui
 import (
 	"errors"
 	"fmt"
-	"github.com/trygo/util/event"
 	"image"
 	"image/color"
 	"log"
-	"time"
-	//	"log"
-	//"image/color"
-	//"syscall"
-	"github.com/google/gxui"
-	"github.com/trygo/gdiplus"
 	"sync/atomic"
+	"time"
+
+	"github.com/google/gxui"
+	"github.com/tryor/gdiplus"
+	"github.com/tryor/util/event"
 )
 
 type IDrawPage interface {

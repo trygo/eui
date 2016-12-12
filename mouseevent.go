@@ -2,7 +2,7 @@ package eui
 
 import (
 	//	"github.com/google/gxui"
-	"github.com/trygo/util/event"
+	"github.com/tryor/util/event"
 )
 
 type IMouseEvent interface {
