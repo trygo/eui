@@ -45,6 +45,8 @@ type IElements interface {
 	RedrawAll(excludeds ...IElement)
 	RedrawIntersection(excludeds ...IElement)
 	SetLayer(layer ILayer)
+
+	CreateBoundRect() *image.Rectangle
 }
 
 type Elements struct {
