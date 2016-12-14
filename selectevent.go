@@ -1,7 +1,7 @@
 package eui
 
 import (
-	"github.com/tryor/util/event"
+	"github.com/tryor/commons/event"
 )
 
 type SelectEvent struct {

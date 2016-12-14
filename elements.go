@@ -7,7 +7,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/tryor/util/event"
+	"github.com/tryor/commons/event"
 )
 
 var emptyElements = make([]IElement, 0)

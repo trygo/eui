@@ -2,7 +2,7 @@ package eui
 
 import (
 	"github.com/google/gxui"
-	"github.com/tryor/util/event"
+	"github.com/tryor/commons/event"
 )
 
 type KeyEvent struct {

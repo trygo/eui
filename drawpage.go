@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/gxui"
+	"github.com/tryor/commons/event"
 	"github.com/tryor/gdiplus"
-	"github.com/tryor/util/event"
 )
 
 type IDrawPage interface {

@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/tryor/util/event"
+	"github.com/tryor/commons/event"
 )
 
 type IElement interface {

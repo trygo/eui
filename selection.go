@@ -1,7 +1,5 @@
 package eui
 
-//	"github.com/trygo/util/event"
-
 type ISelection interface {
 	IMoveSupport
 	IElements
