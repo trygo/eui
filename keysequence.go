@@ -1,9 +1,5 @@
 package eui
 
-import (
-	"github.com/google/gxui"
-)
-
 const (
 	//NoMatch      = iota //不匹配
 	PartialMatch = iota //部分匹配, 即包含
@@ -11,20 +7,20 @@ const (
 )
 
 type KeySequence struct {
-	Keys []gxui.KeyboardKey
+	Keys []KeyboardKey
 }
 
-func NewKeySequence(keys ...gxui.KeyboardKey) *KeySequence {
+func NewKeySequence(keys ...KeyboardKey) *KeySequence {
 	return &KeySequence{Keys: keys}
 }
 
-func (ks *KeySequence) Add(keys ...gxui.KeyboardKey) {
+func (ks *KeySequence) Add(keys ...KeyboardKey) {
 	if len(keys) > 0 {
 		ks.Keys = append(ks.Keys, keys...)
 	}
 }
 
-func (ks *KeySequence) At(index int) gxui.KeyboardKey {
+func (ks *KeySequence) At(index int) KeyboardKey {
 	return ks.Keys[index]
 }
 
@@ -37,7 +33,7 @@ func (ks *KeySequence) Empty() bool {
 }
 
 //不会忽略大小写
-func (ks *KeySequence) Test(key gxui.KeyboardKey) bool {
+func (ks *KeySequence) Test(key KeyboardKey) bool {
 	for _, v := range ks.Keys {
 		if v == key {
 			return true
@@ -47,7 +43,7 @@ func (ks *KeySequence) Test(key gxui.KeyboardKey) bool {
 }
 
 ////忽略大小写
-//func (ks *KeySequence) Test(key gxui.KeyboardKey) bool {
+//func (ks *KeySequence) Test(key KeyboardKey) bool {
 //	key = toLower(key)
 //	for _, v := range ks.Keys {
 //		if toLower(v) == key {
@@ -81,7 +77,7 @@ func (ks *KeySequence) Test(key gxui.KeyboardKey) bool {
 //	}
 //}
 
-func (ks *KeySequence) Tests(matchMode int, keys ...gxui.KeyboardKey) bool {
+func (ks *KeySequence) Tests(matchMode int, keys ...KeyboardKey) bool {
 	if matchMode == PartialMatch {
 		for _, key := range keys {
 			if !ks.Test(key) {

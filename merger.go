@@ -50,22 +50,12 @@ func (this *DefaultLayerMerger) DeleteLayerCanvas(l ILayer) {
 }
 
 func (this *DefaultLayerMerger) getLayerCanvas(l ILayer) *layerCanvas {
-	//	pageGraphics := this.Page.GetGraphicsEngine()
 	lc := this.LayerCanvasMap[l]
 	if lc == nil {
 		lc = &layerCanvas{Donec: make(chan bool), Layer: l}
-		//lc.Canvas = this.canvasCreater(l)
 		if this.graphicsEngineCreater != nil {
 			lc.GraphicsEngine, lc.Canvas = this.graphicsEngineCreater(l)
 			l.SetGraphicsEngine(lc.GraphicsEngine)
-
-			//			ge, canvas := this.graphicsEngineCreater(l)
-			//			if ge != nil {
-			//				lc.GraphicsEngine, lc.Canvas = ge, canvas
-			//				l.SetGraphicsEngine(lc.GraphicsEngine, true)
-			//			} else {
-			//				l.SetGraphicsEngine(pageGraphics, false)
-			//			}
 		}
 		if l.GetBackground() != nil {
 			if lc.GraphicsEngine != nil {
@@ -73,8 +63,6 @@ func (this *DefaultLayerMerger) getLayerCanvas(l ILayer) *layerCanvas {
 				lc.GraphicsEngine.Clear()
 			}
 		}
-
-		//lc.GraphicsEngine.SetLineWidth(1)
 		this.LayerCanvasMap[l] = lc
 	}
 

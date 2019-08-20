@@ -1,21 +1,21 @@
 package eui
 
 import (
-	"github.com/google/gxui"
+	//"github.com/google/gxui"
 	"github.com/tryor/commons/event"
 )
 
 type KeyEvent struct {
 	event.Event
 	KeySequence *KeySequence //键序列
-	Key         gxui.KeyboardKey
+	Key         KeyboardKey
 	Char        rune //字符
 
 	Modifier KeyboardModifier
 }
 
 //func NewKeyEvent(t event.Type, source interface{}, keys ...byte) *KeyEvent {
-func NewKeyEvent(t event.Type, source interface{}, modifier KeyboardModifier, keys ...gxui.KeyboardKey) *KeyEvent {
+func NewKeyEvent(t event.Type, source interface{}, modifier KeyboardModifier, keys ...KeyboardKey) *KeyEvent {
 	ke := &KeyEvent{Event: event.Event{Type: t, Source: source}, Modifier: modifier}
 	ke.KeySequence = NewKeySequence(keys...)
 	if len(keys) > 0 {
@@ -24,7 +24,7 @@ func NewKeyEvent(t event.Type, source interface{}, modifier KeyboardModifier, ke
 	return ke
 }
 
-func NewKeyCharEvent(t event.Type, source interface{}, char rune, modifier KeyboardModifier, keys ...gxui.KeyboardKey) *KeyEvent {
+func NewKeyCharEvent(t event.Type, source interface{}, char rune, modifier KeyboardModifier, keys ...KeyboardKey) *KeyEvent {
 	ke := &KeyEvent{Event: event.Event{Type: t, Source: source}, Char: char, Modifier: modifier}
 	ke.KeySequence = NewKeySequence(keys...)
 	if len(keys) > 0 {
@@ -33,11 +33,11 @@ func NewKeyCharEvent(t event.Type, source interface{}, char rune, modifier Keybo
 	return ke
 }
 
-func (ke *KeyEvent) Test(k gxui.KeyboardKey) bool {
+func (ke *KeyEvent) Test(k KeyboardKey) bool {
 	return ke.KeySequence.Test(k)
 }
 
-func (ke *KeyEvent) Tests(matchMode int, ks ...gxui.KeyboardKey) bool {
+func (ke *KeyEvent) Tests(matchMode int, ks ...KeyboardKey) bool {
 	return ke.KeySequence.Tests(matchMode, ks...)
 }
 

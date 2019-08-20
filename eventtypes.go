@@ -41,6 +41,9 @@ const MOUSE_WHEEL_EVENT_TYPE event.Type = 1206
 //鼠标移入到对象上
 const MOUSE_ENTER_EVENT_TYPE event.Type = 1207
 
+//鼠标在焦点对象外点击
+const MOUSE_OUTSIDE_EVENT_TYPE event.Type = 1208
+
 /*键盘事件 1220-1230 */
 //按下
 const KEY_PRESS_EVENT_TYPE event.Type = 1221

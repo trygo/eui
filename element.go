@@ -39,6 +39,7 @@ type IElement interface {
 	fireMouseLeaveEvent(e IMouseEvent) bool //鼠标离开元素事件
 	fireFocusEvent(focus bool) bool
 	firePaintEvent() bool
+	fireMouseOutsideDownEvent(e IMouseEvent) bool
 
 	Intersects(x, y int) bool //检查是否与点(x, y)相交
 	IntersectsWith(rect *image.Rectangle) bool
@@ -46,6 +47,7 @@ type IElement interface {
 	IntersectsElement(el IElement) bool
 	IntersectsElements(els ...IElement) bool
 
+	findByEventEnabled(x, y int) IElement
 	//IntersectsSnapshotWith(rect *image.Rectangle) bool
 
 	SetAlignment(a Alignment) //设置水平和垂直对齐方式
@@ -72,10 +74,14 @@ type IElement interface {
 	CreatePath()
 	CreateBoundRect() *image.Rectangle
 	GetBoundRect(adjustVal ...int) *image.Rectangle
+	ClearBoundRect()
+	//getMouseEventBoundRect() *image.Rectangle
 	//MakeBoundRectSnapshot()
 	//GetBoundRectSnapshot(adjustVal ...int) *image.Rectangle
 
 	IsFocus() bool
+	IsLayerFocus() bool
+	IsParentFocus() bool
 	GetClipRegionAdjustValue() int
 
 	IsActive() bool
@@ -99,6 +105,7 @@ type IElement interface {
 	GetChildren() IElements
 	GetChildrenCount() int
 	GetChildrenFocusElement() IElement
+	GetChildrenMaxOrderZ() int
 	RemoveChild(e IElement) bool
 	GetChild(id string) IElement
 	ExistChild(id string) bool
@@ -128,11 +135,13 @@ type Element struct {
 	alignment   Alignment //在父元素中的对齐方式,对齐方式的参考值为anchorPoint值，其实就是针对anchorPoint坐标点的对齐
 	x, y        int       // x,y坐标，w,h高度宽度((x,y)coordinates, (w, h)height and width)
 	w, h        int
+	//boundsAdjusted bool
 
 	Layer ILayer //元素所在层
 
 	boundRect         *image.Rectangle //边界矩形, 此区域不一定等于X, Y, W, H
 	boundRectSnapshot *image.Rectangle //边界矩形快照，用于渲染时用,渲染时会创建边界矩形快照
+	//	mouseEventBoundRect *image.Rectangle //用于检测鼠标事件的区域
 
 	ClipRegionAdjustValue int //被剪裁区域的调整值
 	//redrawElements        *Elements
@@ -241,7 +250,12 @@ func (this *Element) IsVisible() bool {
 }
 
 func (this *Element) SetVisible(b bool) {
+	if this.visible == b {
+		return
+	}
 	this.visible = b
+	this.Self.SetModified(true)
+	this.fireVisibleEvent()
 }
 
 func (this *Element) IsDestroyed() bool {
@@ -421,27 +435,17 @@ func (this *Element) GetAnchorPoint() (x, y REAL) {
 }
 
 func (this *Element) SetWidth(w int) {
-	//	w_ := int32(w)
-	//	if this.w != w_ {
-	//		//atomic.StoreInt32(&this.w, w_)
-	//		this.Self.(IElement).SetModified(true)
-	//	}
 	if this.w != w {
 		this.w = w
+		this.Self.ClearBoundRect()
 		this.Self.(IElement).SetModified(true)
 	}
 }
 
 func (this *Element) SetHeight(h int) {
-	//	h_ := int32(h)
-	//	if this.h != h_ {
-	//		//		this.h = h
-	//		atomic.StoreInt32(&this.h, h_)
-	//		//		this.Self.(IElement).ClearBoundRect()
-	//		this.Self.(IElement).SetModified(true)
-	//	}
 	if this.h != h {
 		this.h = h
+		this.Self.ClearBoundRect()
 		this.Self.(IElement).SetModified(true)
 	}
 }
@@ -451,11 +455,8 @@ func (this *Element) SetCoordinate(x, y int) {
 		return
 	}
 	this.x, this.y = x, y
+	this.Self.ClearBoundRect()
 	this.Self.(IElement).SetModified(true)
-
-	//	atomic.StoreInt32(&this.x, int32(x))
-	//	atomic.StoreInt32(&this.y, int32(y))
-	//	this.Self.(IElement).SetModified(true)
 
 }
 
@@ -588,6 +589,7 @@ func (this *Element) CreatePath() {
 }
 
 func (this *Element) SetModified(b bool) {
+
 	p := this.parent
 	if p != nil {
 		p.SetModified(b)
@@ -600,8 +602,8 @@ func (this *Element) SetModified(b bool) {
 	if this.IsModified() == b {
 		return
 	}
+
 	this.modified = b
-	//this.ModifiedSupport.SetModified(b)
 }
 
 /**
@@ -665,18 +667,64 @@ func (this *Element) RedrawAll(excludeds ...IElement) {
 	}
 }
 
+func (this *Element) findByEventEnabled(x, y int) IElement {
+
+	var e IElement
+	elements := this.Self.(IElement).GetChildren()
+	elements.Sort()
+	elements.ForEachLast(func(i int, el IElement) bool {
+		if el != nil && el.IsEventEnabled() && el.IsVisible() {
+			e2 := el.findByEventEnabled(x, y)
+			if e2 != nil {
+				e = e2 //el //e2
+				return false
+			}
+			if el.Intersects(x, y) {
+				e = el
+				return false
+			}
+		}
+
+		return true
+	})
+	return e
+}
+
 /**
  * 检查是否与点(x, y)相交
  */
-func (this *Element) Intersects(x, y int) bool {
 
+//func (this *Element) Intersects(x, y int) bool {
+//	if this.IsDestroyed() {
+//		return false
+//	}
+
+//	if this.intersects(x, y) {
+//		return true
+//	}
+
+//	var isIntersects bool
+//	this.Self.(IElement).GetChildren().ForEach(func(idx int, el IElement) (continue_ bool) {
+
+//		if isIntersects {
+//			return false
+//		}
+//		if el.Intersects(x, y) {
+//			isIntersects = true
+//			log.Println("Intersects isIntersects: ", isIntersects, el.GetId())
+//			return false
+//		}
+//		return false
+//	})
+
+//	return isIntersects
+
+//}
+
+func (this *Element) Intersects(x, y int) bool {
 	if this.IsDestroyed() {
-		//println("Element.Intersects.IsDestroyed", this.IsDestroyed())
 		return false
 	}
-	//	if this.Self == nil {
-	//		println("Element.Intersects.this.Self", this.Self)
-	//	}
 	r := this.Self.(IElement).GetBoundRect()
 	if r.Dx() < 0 || r.Dy() < 0 {
 		r = FormatRect(r)
@@ -691,13 +739,6 @@ func (this *Element) Intersects(x, y int) bool {
 func (this *Element) IntersectsWith(rect *image.Rectangle) bool {
 	br := this.Self.(IElement).GetBoundRect()
 	if br != nil && rect != nil {
-		//		if Intersect(br, rect) != (br.Intersect(*rect) != image.ZR) {
-		//			println("Element.IntersectsWith", br.String(), rect.String(), Intersect(br, rect), br.Intersect(*rect).String())
-		//		}
-
-		//		r := this.BoundRect.Intersect(*rect)
-		//		return !(r.Min.X == 0 && r.Min.Y == 0 && r.Max.X == 0 && r.Max.Y == 0)
-		//		return (*br).Intersect(*rect) != image.ZR
 		return IsIntersect(br, rect)
 	}
 	return false
@@ -759,19 +800,15 @@ func (this *Element) CreateBoundRect() *image.Rectangle {
 	//		childrenBR := this.children.CreateBoundRect()
 	//		boundRect = Union(childrenBR, boundRect)
 	//	}
-
+	//	if this.GetTag() == "Panel2" {
+	//		log.Println("Element.CreateBoundRect Id: ", this.GetId(), boundRect.Dx(), boundRect.Dy())
+	//	}
 	return boundRect
 }
 
-//func (this *Element) ClearBoundRect() {
-//	//	this.boundRectLocker.Lock()
-//	//	defer this.boundRectLocker.Unlock()
-//	this.boundRect = nil
-
-//	//	for _, e := range this.children.GetElements() {
-//	//		e.ClearBoundRect()
-//	//	}
-//}
+func (this *Element) ClearBoundRect() {
+	this.boundRect = nil
+}
 
 //func (this *Element) SetBoundRect(boundRect *image.Rectangle) {
 //	this.boundRect = boundRect //&image.Rectangle{Min: boundRect.Min, Max: boundRect.Max}
@@ -788,11 +825,6 @@ func (this *Element) CreateBoundRect() *image.Rectangle {
  */
 func (this *Element) GetBoundRect(adjustVal ...int) *image.Rectangle {
 
-	//	br := this.getBoundRect()
-	//	if br == nil {
-	//		br = this.Self.(IElement).CreateBoundRect()
-	//	}
-	//	br := this.getBoundRect()
 	br := this.boundRect
 	if br == nil {
 		br = this.Self.(IElement).CreateBoundRect()
@@ -822,52 +854,20 @@ func (this *Element) GetBoundRect(adjustVal ...int) *image.Rectangle {
 		return br
 	}
 
-	//	r := image.Rect(x, y, x1, y1)
-	//	return &r
 }
 
-//func (this *Element) MakeBoundRectSnapshot() {
-//	this.boundRectSnapshot = this.GetBoundRect()
-//	if this.children.Size() > 0 {
-//		this.children.MakeBoundRectSnapshot()
+//func (this *Element) getMouseEventBoundRect() *image.Rectangle {
+//	if this.mouseEventBoundRect != nil {
+//		return this.mouseEventBoundRect
 //	}
-//}
+//	boundRect := this.Self.CreateBoundRect()
 
-//func (this *Element) GetBoundRectSnapshot(adjustVal ...int) *image.Rectangle {
-//	br := this.boundRectSnapshot
-//	if br == nil {
-//		br = this.Self.(IElement).CreateBoundRect()
-//		//panic("boundrect snapshot not exist!")
+//	if !this.children.Empty() {
+//		childrenBR := this.children.CreateBoundRect()
+//		boundRect = Union(childrenBR, boundRect)
 //	}
-//	x, y, x1, y1 := br.Min.X, br.Min.Y, br.Max.X, br.Max.Y
-//	if len(adjustVal) > 0 && adjustVal[0] != 0 {
-
-//		v := adjustVal[0]
-//		if x < x1 {
-//			x -= v
-//			x1 += v
-//		} else {
-//			x += v
-//			x1 -= v
-//		}
-//		if y < y1 {
-//			y -= v
-//			y1 += v
-//		} else {
-//			y += v
-//			y1 -= v
-//		}
-
-//		return &image.Rectangle{Min: image.Point{x, y},
-//			Max: image.Point{x1, y1}}
-//	} else {
-//		return br
-//	}
-//}
-
-//func (this *Element) isFocus() bool {
-//	l := this.Layer
-//	return l != nil && l.GetFocusElement() == this.Self
+//	this.mouseEventBoundRect = boundRect
+//	return this.mouseEventBoundRect
 //}
 
 func (this *Element) IsFocus() bool {
@@ -876,6 +876,51 @@ func (this *Element) IsFocus() bool {
 	}
 	p := this.parent
 	return p != nil && p.GetChildrenFocusElement() == this.Self
+}
+
+func (this *Element) IsLayerFocus() bool {
+	if l := this.Layer; l != nil && l.GetFocusElement() == this.Self {
+		return true
+	}
+	return false
+}
+
+func (this *Element) IsParentFocus() bool {
+	p := this.parent
+	return p != nil && p.GetChildrenFocusElement() == this.Self
+}
+
+func (this *Element) SetFocus() {
+	//	if this.IsFocus() {
+	//		return
+	//	}
+
+	flag := false
+	var oldFocusEle1, oldFocusEle2 IElement
+
+	if p := this.parent; p != nil && !this.IsParentFocus() {
+		oldFocusEle2 = p.GetChildrenFocusElement()
+		p.GetChildren().setFocusElement(this.Self)
+		flag = true
+	}
+
+	//if !flag {
+	if l := this.Layer; l != nil && !this.IsLayerFocus() {
+		oldFocusEle1 = l.GetFocusElement()
+		l.setFocusElement(this.Self)
+		flag = true
+	}
+	//}
+
+	if oldFocusEle1 != nil {
+		oldFocusEle1.fireFocusEvent(false)
+	}
+	if oldFocusEle2 != nil && oldFocusEle2 != oldFocusEle1 {
+		oldFocusEle2.fireFocusEvent(false)
+	}
+	if flag {
+		this.Self.fireFocusEvent(true)
+	}
 }
 
 /**
@@ -958,6 +1003,22 @@ func (this *Element) fireMovedEvent(dx, dy int, angle float32) bool {
 	this.movedEvent.Dy = dy
 	this.movedEvent.Angle = angle
 	return this.Self.(IElement).FireEvent(this.movedEvent)
+}
+
+func (this *Element) fireVisibleEvent() {
+	if this.onVisibleEvent != nil {
+		e := NewVisibleEvent(this.Self, this.visible)
+		this.Self.(IElement).FireEvent(e)
+	}
+}
+
+//MouseOutsideDown
+func (this *Element) fireMouseOutsideDownEvent(e IMouseEvent) bool {
+	if !this.Self.Intersects(e.X(), e.Y()) {
+		outsideEvent := NewMouseEvent(MOUSE_OUTSIDE_EVENT_TYPE, e.GetSource(), e.X(), e.Y(), e.GetButtons(), e.GetModifier())
+		return this.Self.(IElement).FireEvent(outsideEvent)
+	}
+	return false
 }
 
 func (this *Element) prepareRedrawElements() *Elements {
@@ -1047,6 +1108,10 @@ func (this *Element) GetChildrenFocusElement() IElement {
 	return this.children.GetFocusElement()
 }
 
+func (this *Element) GetChildrenMaxOrderZ() int {
+	return this.children.GetMaxOrderZ()
+}
+
 func (this *Element) RemoveChild(e IElement) bool {
 	e.RedrawIntersection()
 	return this.children.Remove(e)
@@ -1075,8 +1140,18 @@ func (this *Element) SetOrderZ(z int) {
 		return
 	}
 	this.orderZ = z
+
 	if this.parent != nil {
 		this.parent.ClearChildrenSortFlag()
+	} else if this.Layer != nil {
+		this.Layer.ClearChildrenSortFlag()
+	} else {
+		if layer, ok := this.Self.(ILayer); ok {
+			dp := layer.GetDrawPage()
+			if dp != nil {
+				dp.ClearLayersSortFlag()
+			}
+		}
 	}
 
 }

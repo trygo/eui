@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/gxui"
+	//	"github.com/google/gxui"
 	"github.com/tryor/commons/event"
 	"github.com/tryor/gdiplus"
 )
@@ -30,6 +30,7 @@ type IDrawPage interface {
 	SetGraphicsEngine(ge IGraphicsEngine)
 	GetGraphicsEngine() IGraphicsEngine
 	SortLayers()
+	ClearLayersSortFlag()
 	GetLayers() []ILayer
 	GetLayersCount() int
 	GetGeometry() *image.Rectangle
@@ -41,10 +42,10 @@ type IDrawPage interface {
 	SetVisibleRegion(x, y, w, h int)
 	GetVisibleRegion() image.Rectangle
 	Draw()
-	Render()
+	Render(...bool)
 	SetRenderEnable(b bool)
 	//isFinish false:渲染开始， true表示渲染完成
-	OnRender(func(page IDrawPage, isFinish bool)) gxui.EventSubscription
+	OnRender(func(page IDrawPage, isFinish bool)) EventSubscription
 
 	AddLayer(l ILayer, idx ...int) error
 	RemoveLayer(l ILayer) bool
@@ -93,7 +94,7 @@ type DrawPage struct {
 
 	modifiedEvent *ModifiedEvent //定义改变被修改状态事件
 	paintEvent    *PaintEvent
-	onRenderEvent gxui.Event
+	onRenderEvent Event
 
 	drawing       bool
 	renderEnable  bool //仅当renderEnable为true才能继续进行渲染，否则将被暂停渲染
@@ -258,7 +259,8 @@ func (this *DrawPage) SetFocusLayer(l ILayer) {
 			focusElement := this.FocusLayer.GetFocusElement()
 			if focusElement != nil {
 				focusElement.fireFocusEvent(false)
-				this.FocusLayer.SetFocusElement(nil)
+				this.FocusLayer.setFocusElement(nil)
+				//this.FocusLayer.SetFocusElement(nil) //TODO at 20190712
 			}
 		}
 		this.FocusLayer = l
@@ -338,9 +340,6 @@ func (this *DrawPage) GetVisibleRegion() image.Rectangle {
 }
 
 func (this *DrawPage) AddLayer(l ILayer, idx ...int) error {
-	//	if l == nil {
-	//		return false
-	//	}
 	err := this.layers.Add(l, idx...)
 	if err == nil {
 		l.SetDrawPage(this.Self.(IDrawPage))
@@ -362,8 +361,13 @@ func (this *DrawPage) RemoveLayer(l ILayer) bool {
 	}
 	return false
 }
+
 func (this *DrawPage) SortLayers() {
 	this.layers.Sort()
+}
+
+func (this *DrawPage) ClearLayersSortFlag() {
+	this.layers.ClearSortFlag()
 }
 
 func (this *DrawPage) GetLayers() []ILayer {
@@ -443,7 +447,6 @@ func (this *DrawPage) handleMouseEvent(me IMouseEvent) bool {
 	this.Self.(IEventSupport).FireEvent(me)
 
 	x, y := me.X(), me.Y()
-	//	println("DrawPage.handleMouseEvent:", x, y)
 
 	//向层转发鼠标事件
 	var layer ILayer
@@ -454,6 +457,7 @@ func (this *DrawPage) handleMouseEvent(me IMouseEvent) bool {
 			this.MouseHoveringLayer.fireMouseLeaveEvent(me) //离开层
 			this.MouseHoveringLayer = nil
 		}
+
 		if layer != nil {
 			if this.MouseHoveringLayer != layer {
 				this.MouseHoveringLayer = layer
@@ -506,7 +510,7 @@ func (this *DrawPage) handleMouseEvent(me IMouseEvent) bool {
 func (this *DrawPage) getHoveringLayer(x, y int) ILayer {
 	var layer ILayer
 	this.layers.ForEachLast(func(i int, l IElement) bool {
-		//log.Println("getHoveringLayer:", i, l.GetId(), l.IsEventEnabled(), l.IsVisible(), l.Intersects(x, y))
+		//log.Println("getHoveringLayer:", i, l.GetId(), l.IsEventEnabled(), l.IsVisible(), l.Intersects(x, y), x, y)
 		if l.IsEventEnabled() && l.IsVisible() && l.Intersects(x, y) {
 			layer = l.(ILayer)
 			return false
@@ -633,14 +637,14 @@ func (this *DrawPage) ShowFPS(statTimes int) {
 	//this.SetModified(true)
 }
 
-func (this *DrawPage) OnRender(f func(IDrawPage, bool)) gxui.EventSubscription {
+func (this *DrawPage) OnRender(f func(IDrawPage, bool)) EventSubscription {
 	if this.onRenderEvent == nil {
-		this.onRenderEvent = gxui.CreateEvent(func(IDrawPage, bool) {})
+		this.onRenderEvent = CreateEvent(func(IDrawPage, bool) {})
 	}
 	return this.onRenderEvent.Listen(f)
 }
 
-func (this *DrawPage) Render() {
+func (this *DrawPage) Render(necessary ...bool) {
 	if atomic.LoadInt32(&this.lockRendering) > 0 {
 		return
 	}
@@ -668,7 +672,10 @@ func (this *DrawPage) Render() {
 			this.onRenderEvent.Fire(this.Self, true)
 		}
 	}()
-	if this.IsModified() || this.showStatInfoEnable {
+
+	if len(necessary) > 0 && necessary[0] {
+		this.render()
+	} else if this.IsModified() || this.showStatInfoEnable {
 		this.render()
 	}
 }

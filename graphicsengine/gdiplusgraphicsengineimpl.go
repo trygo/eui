@@ -7,6 +7,7 @@ import (
 	"image/draw"
 	"log"
 	"sync"
+	"time"
 	"unsafe"
 )
 
@@ -24,14 +25,32 @@ import (
 var gpToken ULONG_PTR
 
 func GdiplusStartup() {
-	gdiplus.Startup(&gpToken, nil, nil)
+	var status gdiplus.Status
+	var err error
+	for i := 0; i < 3; i++ {
+		status, err = gdiplus.Startup(&gpToken, nil, nil)
+		if err != nil {
+			log.Printf("GdiplusStartup, init gdiplus failure, try again %v, status:%v, error:%v\n", i+1, status, err)
+			time.Sleep(time.Millisecond * 10)
+		}
+	}
+	if err != nil {
+		log.Printf("GdiplusStartup, status:%v, error:%v\n", status, err)
+	}
+}
+
+func GdiplusToken() ULONG_PTR {
+	return gpToken
 }
 
 func GdiplusShutdown() {
 	//	gdiplus.Shutdown(gpToken)
-	status, err := gdiplus.Shutdown(gpToken)
-	fmt.Println("Shutdown.status:", status)
-	fmt.Println("Shutdown.err:", err)
+	if gpToken != 0 {
+		status, err := gdiplus.Shutdown(gpToken)
+		gpToken = 0
+		fmt.Println("Shutdown.status:", status)
+		fmt.Println("Shutdown.err:", err)
+	}
 }
 
 func GdiplusCreateBuffer(hostHWND HANDLE, width, height int, threeBuffer bool) (hostHDC, bufferHDC, threeBufferHDC HDC) {
@@ -57,19 +76,19 @@ type myMutex struct {
 }
 
 func (this *myMutex) Lock() {
-	this.RWMutex.Lock()
+	//this.RWMutex.Lock()
 }
 
 func (this *myMutex) Unlock() {
-	this.RWMutex.Unlock()
+	//this.RWMutex.Unlock()
 }
 
 func (this *myMutex) RLock() {
-	this.RWMutex.RLock()
+	//this.RWMutex.RLock()
 }
 
 func (this *myMutex) RUnlock() {
-	this.RWMutex.RUnlock()
+	//this.RWMutex.RUnlock()
 }
 
 type GdiplusPath struct {
@@ -113,7 +132,7 @@ func (this *GdiplusPath) Reset() {
 	defer this.locker.Unlock()
 	this.GraphicsPath.Reset()
 	if this.GraphicsPath.LastResult != gdiplus.Ok {
-		log.Println(this.GraphicsPath.LastError)
+		log.Println("GdiplusPath.Reset", this.GraphicsPath.LastError)
 	}
 }
 
@@ -122,7 +141,7 @@ func (this *GdiplusPath) Release() {
 	defer this.locker.Unlock()
 	this.GraphicsPath.Release()
 	if this.GraphicsPath.LastResult != gdiplus.Ok {
-		log.Println(this.GraphicsPath.LastError)
+		log.Println("GdiplusPath.Release", this.GraphicsPath.LastError)
 	}
 }
 
@@ -130,7 +149,11 @@ func (this *GdiplusPath) IsVisible(x, y float32, ge IGraphicsEngine) bool {
 	this.locker.Lock()
 	defer this.locker.Unlock()
 	vx, vy := this.ge.visibleRegion.GetVisibleRegionCoordinate() //this.visibleRegion.GetVisibleRegionCoordinate()
-	return bool(this.GraphicsPath.IsVisible(gdiplus.REAL(x-float32(vx)), gdiplus.REAL(y-float32(vy)), ge.(*GdiplusGraphicsEngine).Graphics))
+	rs := bool(this.GraphicsPath.IsVisible(gdiplus.REAL(x-float32(vx)), gdiplus.REAL(y-float32(vy)), ge.(*GdiplusGraphicsEngine).Graphics))
+	if this.GraphicsPath.LastResult != gdiplus.Ok {
+		log.Println("GdiplusPath.IsVisible", this.GraphicsPath.LastError)
+	}
+	return rs
 }
 
 func (this *GdiplusPath) IsOutlineVisible(x, y float32, ge IGraphicsEngine) bool {
@@ -146,7 +169,11 @@ func (this *GdiplusPath) IsOutlineVisible(x, y float32, ge IGraphicsEngine) bool
 		g.renderPen = nil
 	}
 	vx, vy := this.ge.visibleRegion.GetVisibleRegionCoordinate() //this.visibleRegion.GetVisibleRegionCoordinate()
-	return bool(this.GraphicsPath.IsOutlineVisible(gdiplus.REAL(x-float32(vx)), gdiplus.REAL(y-float32(vy)), pen, g.Graphics))
+	rs := bool(this.GraphicsPath.IsOutlineVisible(gdiplus.REAL(x-float32(vx)), gdiplus.REAL(y-float32(vy)), pen, g.Graphics))
+	if this.GraphicsPath.LastResult != gdiplus.Ok {
+		log.Println("GdiplusPath.IsOutlineVisible", this.GraphicsPath.LastError)
+	}
+	return rs
 }
 
 func (this *GdiplusPath) AddEllipse(r *image.Rectangle) {
@@ -154,15 +181,22 @@ func (this *GdiplusPath) AddEllipse(r *image.Rectangle) {
 	defer this.locker.Unlock()
 	vx, vy := this.ge.visibleRegion.GetVisibleRegionCoordinate() //this.visibleRegion.GetVisibleRegionCoordinate()
 	this.GraphicsPath.AddEllipse(gdiplus.REAL(r.Min.X-vx), gdiplus.REAL(r.Min.Y-vy), gdiplus.REAL(r.Dx()), gdiplus.REAL(r.Dy()))
+	if this.GraphicsPath.LastResult != gdiplus.Ok {
+		log.Println("GdiplusPath.AddEllipse", this.GraphicsPath.LastError)
+	}
 }
 
 func (this *GdiplusPath) AddRectangle(r *image.Rectangle) {
 	this.locker.Lock()
 	defer this.locker.Unlock()
+	//log.Println("1 GdiplusPath.AddRectangle, Rectangle:", this.GraphicsPath.LastResult, this.GraphicsPath.LastError, r)
 	vx, vy := this.ge.visibleRegion.GetVisibleRegionCoordinate() //this.visibleRegion.GetVisibleRegionCoordinate()
 	r = FormatRect(r)
 	x, y, w, h := gdiplus.REAL(r.Min.X-vx), gdiplus.REAL(r.Min.Y-vy), gdiplus.REAL(r.Dx()), gdiplus.REAL(r.Dy())
 	this.GraphicsPath.AddRectangle(&gdiplus.RectF{x, y, w, h})
+	if this.GraphicsPath.LastResult != gdiplus.Ok {
+		log.Println("GdiplusPath.AddRectangle, Rectangle:", this.GraphicsPath.LastResult, this.GraphicsPath.LastError, x, y, w, h)
+	}
 }
 
 func (this *GdiplusPath) AddPolygon(points []image.Point) {
@@ -176,6 +210,9 @@ func (this *GdiplusPath) AddPolygon(points []image.Point) {
 		ps[i].Y = INT(p.Y - vy)
 	}
 	this.GraphicsPath.AddPolygonI(ps)
+	if this.GraphicsPath.LastResult != gdiplus.Ok {
+		log.Println("GdiplusPath.AddPolygon", this.GraphicsPath.LastError)
+	}
 }
 
 func (this *GdiplusPath) AddLine(x1, y1, x2, y2 float32) {
@@ -183,6 +220,9 @@ func (this *GdiplusPath) AddLine(x1, y1, x2, y2 float32) {
 	defer this.locker.Unlock()
 	vx, vy := this.ge.visibleRegion.GetVisibleRegionCoordinate() //this.visibleRegion.GetVisibleRegionCoordinate()
 	this.GraphicsPath.AddLine(gdiplus.REAL(x1-float32(vx)), gdiplus.REAL(y1-float32(vy)), gdiplus.REAL(x2-float32(vx)), gdiplus.REAL(y2-float32(vy)))
+	if this.GraphicsPath.LastResult != gdiplus.Ok {
+		log.Println("GdiplusPath.AddLine", this.GraphicsPath.LastError)
+	}
 }
 
 func (this *GdiplusPath) AddBezier(x1, y1, x2, y2, x3, y3, x4, y4 float32) {
@@ -191,6 +231,10 @@ func (this *GdiplusPath) AddBezier(x1, y1, x2, y2, x3, y3, x4, y4 float32) {
 	vx, vy := this.ge.visibleRegion.GetVisibleRegionCoordinate() //this.visibleRegion.GetVisibleRegionCoordinate()
 	this.GraphicsPath.AddBezier(gdiplus.REAL(x1-float32(vx)), gdiplus.REAL(y1-float32(vy)), gdiplus.REAL(x2-float32(vx)), gdiplus.REAL(y2-float32(vy)),
 		gdiplus.REAL(x3-float32(vx)), gdiplus.REAL(y3-float32(vy)), gdiplus.REAL(x4-float32(vx)), gdiplus.REAL(y4-float32(vy)))
+
+	if this.GraphicsPath.LastResult != gdiplus.Ok {
+		log.Println("GdiplusPath.AddBezier", this.GraphicsPath.LastError)
+	}
 }
 
 func (this *GdiplusPath) AddArc(r *image.Rectangle, startAngle, sweepAngle float32) {
@@ -198,6 +242,9 @@ func (this *GdiplusPath) AddArc(r *image.Rectangle, startAngle, sweepAngle float
 	defer this.locker.Unlock()
 	vx, vy := this.ge.visibleRegion.GetVisibleRegionCoordinate() //this.visibleRegion.GetVisibleRegionCoordinate()
 	this.GraphicsPath.AddArc(gdiplus.REAL(r.Min.X-vx), gdiplus.REAL(r.Min.Y-vy), gdiplus.REAL(r.Dx()), gdiplus.REAL(r.Dy()), gdiplus.REAL(startAngle), gdiplus.REAL(sweepAngle))
+	if this.GraphicsPath.LastResult != gdiplus.Ok {
+		log.Println("GdiplusPath.AddArc", this.GraphicsPath.LastError)
+	}
 }
 
 func (this *GdiplusPath) AddString(layoutRect *image.Rectangle, text string, fontSize float32, family IFontFamily, style IFontStyle, stringFormat IStringFormat) {
@@ -214,6 +261,9 @@ func (this *GdiplusPath) AddString(layoutRect *image.Rectangle, text string, fon
 	vx, vy := this.ge.visibleRegion.GetVisibleRegionCoordinate() //this.visibleRegion.GetVisibleRegionCoordinate()
 	lrect := &gdiplus.Rect{INT(layoutRect.Min.X - vx), INT(layoutRect.Min.Y - vy), INT(layoutRect.Dx()), INT(layoutRect.Dy())}
 	this.GraphicsPath.AddStringI(text, family_, gdiplus.FontStyle(style), gdiplus.REAL(fontSize), lrect, stringFormat_)
+	if this.GraphicsPath.LastResult != gdiplus.Ok {
+		log.Println("GdiplusPath.AddString", this.GraphicsPath.LastError)
+	}
 }
 
 func (this *GdiplusPath) LastPoint() (x, y float32) {
@@ -223,6 +273,9 @@ func (this *GdiplusPath) LastPoint() (x, y float32) {
 	if status == gdiplus.Ok {
 		vx, vy := this.ge.visibleRegion.GetVisibleRegionCoordinate() //this.visibleRegion.GetVisibleRegionCoordinate()
 		x, y = float32(lastPoint.X)+float32(vx), float32(lastPoint.Y)+float32(vy)
+	}
+	if this.GraphicsPath.LastResult != gdiplus.Ok {
+		log.Println("GdiplusPath.LastPoint", this.GraphicsPath.LastError)
 	}
 	return
 }
@@ -369,7 +422,6 @@ func (this *GdiplusGraphicsEngine) NewFont(family IFontFamily, emSize float32,
 	if err != nil {
 		return nil, err
 	}
-
 	return font, nil
 }
 
@@ -654,7 +706,6 @@ func (this *GdiplusGraphicsEngine) Render(mode ...RenderMode) {
 	for _, p := range this.Paths {
 		if p != nil {
 			gpath := p.(*GdiplusPath).GraphicsPath
-
 			switch m {
 			case FillStroke:
 				this.Graphics.FillPath(brush, gpath)

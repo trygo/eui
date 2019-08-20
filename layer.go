@@ -6,12 +6,10 @@ import (
 	"image"
 	"image/color"
 
-	"github.com/tryor/commons/event"
-	//	"log"
 	"sort"
 
+	"github.com/tryor/commons/event"
 	. "github.com/tryor/winapi"
-	//	"sync/atomic"
 )
 
 type ILayer interface {
@@ -21,7 +19,7 @@ type ILayer interface {
 	GetLayerType() LayerType
 
 	Init()
-	SetFocusElement(e IElement)
+	setFocusElement(e IElement)
 	GetFocusElement() IElement
 
 	ClearMouseHoveringElement()
@@ -62,6 +60,7 @@ type ILayer interface {
 	GetGraphicsEngine() IGraphicsEngine
 	//	IsLayerGraphicsEngine() bool //IsLayerGraphicsEngine or IsPageGraphicsEngine
 
+	//ClearVisibleRegion()
 	GetVisibleRegionCoordinate() (x, y int)
 	GetVisibleRegion(clearflag ...bool) (*image.Rectangle, *image.Rectangle)
 	GetVisibleRegionF(clearflag ...bool) RectF
@@ -248,6 +247,12 @@ func (this *Layer) Intersects(x, y int) bool {
 
 //func (this *Layer) GetVisibleRegionSnapshotCoordinate() (x, y int) {
 //	return this.visibleRegionSnapshot.Min.X, this.visibleRegionSnapshot.Min.Y
+//}
+
+//func (this *Layer) ClearVisibleRegion() {
+//	this.visibleRegion = ZRF
+//	this.lastVisibleRegion = ZRF
+//	this.visibleRegionModified = true
 //}
 
 func (this *Layer) GetVisibleRegionCoordinate() (x, y int) {
@@ -550,7 +555,7 @@ func (this *Layer) GetGraphicsEngine() IGraphicsEngine {
 	return this.GraphicsEngine
 }
 
-func (this *Layer) SetFocusElement(e IElement) {
+func (this *Layer) setFocusElement(e IElement) {
 	this.focusElement = e
 }
 
@@ -781,23 +786,21 @@ func (this *Layer) findByEventEnabled(x, y int) IElement {
 	elements := this.Self.(ILayer).GetChildren()
 	elements.Sort()
 	elements.ForEachLast(func(i int, el IElement) bool {
-		//log.Println(i, el.GetId())
-		if el != nil && el.IsEventEnabled() && el.IsVisible() && el.Intersects(x, y) {
-			e = el
-			return false
+		if el != nil && el.IsEventEnabled() && el.IsVisible() {
+			e2 := el.findByEventEnabled(x, y)
+			if e2 != nil {
+				e = e2 //el //e2
+				return false
+			}
+			if el.Intersects(x, y) {
+				e = el
+				return false
+			}
 		}
+
 		return true
 	})
 	return e
-
-	//	els := this.Self.(ILayer).GetChildren() //this.elements.GetElements()
-	//	for i := len(els) - 1; i >= 0; i-- {
-	//		e := els[i]
-	//		if e != nil && e.IsEventEnabled() && e.IsVisible() && e.Intersects(x, y) {
-	//			return e
-	//		}
-	//	}
-	//	return nil
 }
 
 /**
@@ -890,6 +893,8 @@ func (this *Layer) TrackEvent(e event.IEvent) bool {
 
 	focusElement := this.focusElement
 	if IsMouseEvent(e.GetType()) {
+
+		/* 2019/07/12
 		//如果是鼠标事件
 		ret := this.handleMouseEvent(e.(IMouseEvent))
 		if e.GetType() == MOUSE_PRESS_EVENT_TYPE {
@@ -910,6 +915,33 @@ func (this *Layer) TrackEvent(e event.IEvent) bool {
 
 		}
 		return ret
+		*/
+
+		//add at 2019/07/12, 不自动设置焦点元素，需要在业务中主动设置
+		ret := this.handleMouseEvent(e.(IMouseEvent))
+
+		if e.GetType() == MOUSE_PRESS_EVENT_TYPE {
+			mhoveringElement := this.Self.(ILayer).GetMouseHoveringElement()
+			if mhoveringElement != nil {
+				if focusElement != mhoveringElement {
+					if focusElement != nil {
+						//focusElement.fireFocusEvent(false)
+						focusElement.fireMouseOutsideDownEvent(e.(IMouseEvent))
+					}
+					//focusElement = mhoveringElement
+					//this.focusElement = focusElement //this.MouseHoveringElement
+					//focusElement.fireFocusEvent(true)
+				}
+			} else if focusElement != nil {
+				focusElement.fireMouseOutsideDownEvent(e.(IMouseEvent))
+				//focusElement.fireFocusEvent(false)
+				//this.focusElement = nil
+			}
+
+		}
+
+		return ret
+
 	} else { //是键盘或其它事件
 		if this.Self.(ILayer).FireEvent(e) {
 			return true
@@ -946,6 +978,7 @@ func (this *Layer) handleMouseEvent(me IMouseEvent) bool {
 			this.Self.(ILayer).ClearMouseHoveringElement()
 			mhoveringElement = nil
 		}
+
 		if e != nil {
 			if mhoveringElement != e {
 				mhoveringElement = e

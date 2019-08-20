@@ -36,7 +36,7 @@ type IElements interface {
 	Sort()
 	ClearSortFlag()
 	//	GetMouseHoveringElement() IElement
-	SetFocusElement(e IElement)
+	setFocusElement(e IElement)
 	GetFocusElement() IElement
 
 	ForEach(f func(idx int, el IElement) (continue_ bool))
@@ -99,12 +99,23 @@ func NewElements(els ...IElement) *Elements {
 //	this.CallSupport.Destroy()
 //}
 
-func (this *Elements) SetFocusElement(e IElement) {
+func (this *Elements) setFocusElement(e IElement) {
 	this.focusElement = e
 }
 
 func (this *Elements) GetFocusElement() IElement {
 	return this.focusElement
+}
+
+func (this *Elements) GetMaxOrderZ() int {
+	if !this.sortFlag {
+		this.Sort()
+	}
+
+	if len(this.elements) > 0 {
+		return this.elements[len(this.elements)-1].GetOrderZ()
+	}
+	return 0
 }
 
 //func (this *Elements) Intersects(x, y int) (ret bool) {
@@ -198,7 +209,6 @@ func (this *Elements) Add(e IElement, idx ...int) error {
 	if id == "" {
 		return errors.New("the element id is nil")
 	}
-
 	//	this.elementsLocker.Lock()
 	//	defer this.elementsLocker.Unlock()
 
@@ -208,24 +218,16 @@ func (this *Elements) Add(e IElement, idx ...int) error {
 		return errors.New("the element already exists, id is" + e.GetId())
 	}
 
-	if len(idx) > 0 {
-		e.SetOrderZ(idx[0])
-		this.sortFlag = false
-	}
-
-	//	if this.contains(e) {
-	//		return nil
-	//	}
-	//if this.Contains(e) {
 	if ee != nil {
+		if len(idx) > 0 {
+			e.SetOrderZ(idx[0])
+			this.sortFlag = false
+		}
+
 		return nil
 	}
 
-	//	this.syncCall(func() {
-	//		this.elements = append(this.elements, e)
-	//		this.elementsmap[e.GetId()] = e
-	//		this.sortFlag = false
-	//	})
+	e.SetOrderZ(len(this.elements))
 
 	this.elementsLocker.Lock()
 	defer this.elementsLocker.Unlock()
@@ -389,13 +391,6 @@ func (this *Elements) getIndex(e IElement) int {
 //}
 
 func (this *Elements) Contains(e IElement) (ret bool) {
-	//	this.elementsLocker.RLock()
-	//	defer this.elementsLocker.RUnlock()
-	//	this.syncCall(func() {
-	//		ret = this.getIndex(e) > -1
-	//	})
-	//	return
-	//	return this.getIndex(e) > -1
 	el := this.GetById(e.GetId())
 	if el == nil {
 		return false
@@ -574,12 +569,6 @@ func (this *Elements) CreateBoundRect() *image.Rectangle {
 	}
 
 	return &image.Rectangle{Min: image.Point{l, t}, Max: image.Point{r, b}}
-
-	//	this.Self.(IElement).SetCoordinate(l, t)
-	//	this.Self.(IElement).SetWidth(r - l)
-	//	this.Self.(IElement).SetHeight(b - t)
-	//	return this.Element.CreateBoundRect()
-
 }
 
 func (this *Elements) SetLayer(layer ILayer) {
@@ -809,17 +798,14 @@ func (this *Elements) redrawAll(excludeds ...IElement) {
 func (this *Elements) SetMoving(b bool) {
 	this.elementsLocker.RLock()
 	defer this.elementsLocker.RUnlock()
-	//log.Println("Elements) SetMoving:", b)
 	for _, e := range this.elements { //this.CloneElements() {
 		e.SetMoving(b)
 	}
-	//	this.MoveSupport.SetMoving(b)
 }
 
 func (this *Elements) PrepareTransform(x, y int) {
 	this.elementsLocker.RLock()
 	defer this.elementsLocker.RUnlock()
-	//log.Println("Elements) PrepareTransform:", x, y)
 	for _, e := range this.elements { //this.CloneElements() {
 		e.PrepareTransform(x, y)
 	}
@@ -902,22 +888,27 @@ func (this *Elements) TrackEvent(e event.IEvent) bool {
 	if IsMouseEvent(e.GetType()) {
 		//如果是鼠标事件
 		ret := this.handleMouseEvent(e.(IMouseEvent))
+
+		//TODO at 2019/7/12 不再自动设置焦点元素
 		if e.GetType() == MOUSE_PRESS_EVENT_TYPE {
 			mhoveringElement := this.GetMouseHoveringElement()
 			if mhoveringElement != nil {
 				if focusElement != mhoveringElement {
-					if focusElement != nil {
-						focusElement.fireFocusEvent(false)
+					if focusElement != nil && focusElement != this.Layer.GetFocusElement() {
+						//focusElement.fireFocusEvent(false)
+						focusElement.fireMouseOutsideDownEvent(e.(IMouseEvent))
 					}
-					focusElement = mhoveringElement
-					this.focusElement = focusElement //this.MouseHoveringElement
-					focusElement.fireFocusEvent(true)
+					//focusElement = mhoveringElement
+					//this.focusElement = focusElement //this.MouseHoveringElement
+					//focusElement.fireFocusEvent(true)
 				}
 			} else if focusElement != nil {
-				focusElement.fireFocusEvent(false)
-				this.focusElement = nil
+				focusElement.fireMouseOutsideDownEvent(e.(IMouseEvent))
+				//focusElement.fireFocusEvent(false)
+				//this.focusElement = nil
 			}
 		}
+
 		return ret
 	} else {
 		//		if this.Self.(IElements).FireEvent(e) {
@@ -952,6 +943,7 @@ func (this *Elements) handleMouseEvent(me IMouseEvent) bool {
 	case MEventMode_Hovering:
 		mhoveringElement := this.GetMouseHoveringElement()
 		e = this.findByEventEnabled(x, y, nil)
+
 		if mhoveringElement != nil {
 			if mhoveringElement != e {
 				mhoveringElement.fireMouseLeaveEvent(me)

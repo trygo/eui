@@ -205,26 +205,32 @@ func (this *DefaultGraphicsEngine) NewRegion() IRegion {
 }
 
 func (this *DefaultGraphicsEngine) NewFontFamily(name string) (IFontFamily, error) {
-	panic(errors.New("Not implemented"))
+	//panic(errors.New("Not implemented"))
+	return nil, errors.New("Not implemented")
 }
 
 func (this *DefaultGraphicsEngine) NewStringFormat() (IStringFormat, error) {
-	panic(errors.New("Not implemented"))
+	//panic(errors.New("Not implemented"))
+	return nil, errors.New("Not implemented")
 }
 
 func (this *DefaultGraphicsEngine) NewFont(family IFontFamily, emSize float32, style IFontStyle, unit IUnit) (IFont, error) {
-	panic(errors.New("Not implemented"))
+	//panic(errors.New("Not implemented"))
+	return nil, errors.New("Not implemented")
 }
 
 func (this *DefaultGraphicsEngine) NewBrush(c color.Color) (IBrush, error) {
-	panic(errors.New("Not implemented"))
+	//panic(errors.New("Not implemented"))
+	return nil, errors.New("Not implemented")
 }
 
 func (this *DefaultGraphicsEngine) NewPen(c color.Color, width ...float32) (IPen, error) {
-	panic(errors.New("Not implemented"))
+	//panic(errors.New("Not implemented"))
+	return nil, errors.New("Not implemented")
 }
 func (this *DefaultGraphicsEngine) NewPen2(brush IBrush, width ...float32) (IPen, error) {
-	panic(errors.New("Not implemented"))
+	//panic(errors.New("Not implemented"))
+	return nil, errors.New("Not implemented")
 }
 
 func (this *DefaultGraphicsEngine) Clear() {
